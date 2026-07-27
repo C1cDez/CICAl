@@ -2,17 +2,19 @@
 #include "parser.h"
 #include "lexer.h"
 
-static void collapse_env(varenv_t* env)
+
+static void collapse_env(varenv_t *env)
 {
 	if (!env) return;
 	if (env->next) collapse_env(env->next);
+	number_free(env->result.value);
 	free(env);
 }
 
 #define COMRES_V(v) (compresult_t){ v, .error = 0 }
 #define COMRES_VD(v) (compresult_t){ .value = { .type = NUMBER_DOUBLE, .doble = v }, 0 }
 #define COMRES_VBI(v) (compresult_t){ .value = { .type = NUMBER_BIGINT, .bint = v }, 0 }
-#define COMRES_E(e) (compresult_t){ .value = { 0 }, e }
+#define COMRES_E(e) (compresult_t){ .value = { { 0 }, 0 }, e }
 
 static compresult_t convert_to_double(compresult_t cr)
 {
@@ -31,32 +33,22 @@ static compresult_t convert_to_double(compresult_t cr)
 
 
 /* helpers */
-static compresult_t compute_variable(const ast_node_t* node, varenv_t* env);
+static compresult_t compute_variable(const ast_node_t *node, varenv_t *env);
 static compresult_t compute_negate(compresult_t cr);
 static compresult_t compute_abs(compresult_t cr);
-static compresult_t compute_dfunction(const ast_node_t* node, varenv_t* env);
+static compresult_t compute_dfunction(const ast_node_t *node, varenv_t *env);
 static compresult_t compute_pow(compresult_t lres, compresult_t rres);
 static compresult_t compute_multiply(compresult_t lres, compresult_t rres);
 static compresult_t compute_divide(compresult_t lres, compresult_t rres);
 static compresult_t compute_add(compresult_t lres, compresult_t rres);
 static compresult_t compute_subtract(compresult_t lres, compresult_t rres);
 
-compresult_t compute_node(const struct ast_node* node, varenv_t* env)
+compresult_t compute_node(const struct ast_node *node, varenv_t *env)
 {
 	if (!node) return COMRES_VD(NAN);
 
 	if (node->type == NODE_NUMBER)
-	{
-		if (node->number.type == NUMBER_DOUBLE)
-			return COMRES_VD(node->number.doble);
-		else if (node->number.type == NUMBER_BIGINT)
-		{
-			/* do NOT transfer ownership */
-			bigint_t cpy = { 0 };
-			bi_copy(&cpy, &node->number.bint);
-			return COMRES_VBI(cpy);
-		}
-	}
+		return COMRES_V(number_copy(node->number));
 	else if (node->type == NODE_PREVANSWER)
 		return get_previous_answer();
 	else if (node->type == NODE_VARIABLE)
@@ -85,9 +77,16 @@ compresult_t compute_node(const struct ast_node* node, varenv_t* env)
 	
 	compresult_t rres = COMRES_E(-1);
 	if (node->right) rres = compute_node(node->right, env);
-	if (rres.error) return rres;
+	if (rres.error)
+	{
+		number_free(lres.value);
+		return rres;
+	}
 	if (rres.value.type == NUMBER_DOUBLE && isnan(rres.value.doble))
+	{
+		number_free(lres.value);
 		return COMRES_VD(NAN);
+	}
 
 	if (node->type == NODE_POW)
 		return compute_pow(lres, rres);
@@ -100,18 +99,24 @@ compresult_t compute_node(const struct ast_node* node, varenv_t* env)
 	else if (node->type == NODE_SUBTRACT)
 		return compute_subtract(lres, rres);
 
+	number_free(lres.value);
+	number_free(rres.value);
 	return COMRES_E(-1);
 }
 
 /* helpers */
-static compresult_t compute_variable(const ast_node_t* node, varenv_t* env)
+static compresult_t compute_variable(const ast_node_t *node, varenv_t *env)
 {
 	while (env)
 	{
-		if (ident_eq(env->variable, node->ident)) return env->result;
+		if (ident_eq(env->variable, node->ident))
+		{
+			compresult_t er = env->result;
+			return (compresult_t) { .error = er.error, .value = number_copy(er.value) };
+		}
 		env = env->next;
 	}
-	const ast_node_t* v = get_variable(node->ident);
+	const ast_node_t *v = get_variable(node->ident);
 	return v ? compute_node(v, env) : COMRES_E(ERROR_COMPUTE_UNDEFINED_VARIABLE);
 }
 static compresult_t compute_negate(compresult_t cr)
@@ -140,14 +145,14 @@ static compresult_t compute_abs(compresult_t cr)
 	}
 	else return COMRES_E(ERROR_COMPUTE_ILLEGAL_NUMBER_TYPE);
 }
-static compresult_t compute_dfunction(const ast_node_t* node, varenv_t* oldenv)
+static compresult_t compute_dfunction(const ast_node_t *node, varenv_t *oldenv)
 {
-	const dfunc_t* dfunc = get_dfunc(node->ident);
+	const dfunc_t *dfunc = get_dfunc(node->ident);
 	if (!dfunc) return COMRES_E(-1);
 
-	varenv_t* env = NULL;
-	const ast_node_t* args = node->left;
-	const ast_node_t* pattern = dfunc->args;
+	varenv_t *env = NULL;
+	const ast_node_t *args = node->left;
+	const ast_node_t *pattern = dfunc->args;
 	while (pattern)
 	{
 		if (!args)
@@ -156,7 +161,7 @@ static compresult_t compute_dfunction(const ast_node_t* node, varenv_t* oldenv)
 			return COMRES_E(ERROR_COMPUTE_TOO_FEW_ARGUMENTS);
 		}
 
-		varenv_t* newenv = calloc(1, sizeof(varenv_t));
+		varenv_t *newenv = calloc(1, sizeof(varenv_t));
 		if (!newenv) PANIC("Undefined unallocation");
 
 		newenv->variable = pattern->left->ident;
@@ -209,15 +214,6 @@ static compresult_t compute_multiply(compresult_t lres, compresult_t rres)
 }
 static compresult_t compute_divide(compresult_t lres, compresult_t rres)
 {
-	/*if (lres.value.type == NUMBER_BIGINT && rres.value.type == NUMBER_BIGINT)
-	{
-		if (bi_is_zero(&rres.value.bint))
-			return COMRES_E(ERROR_COMPUTE_DIVISION_BY_ZERO);
-		bi_div(&lres.value.bint, NULL, &lres.value.bint, &rres.value.bint);
-		bi_free(&rres.value.bint);
-		return lres;
-	}*/
-
 	compresult_t a = convert_to_double(lres), b = convert_to_double(rres);
 	if (a.error) return a;
 	if (b.error) return b;
@@ -260,7 +256,7 @@ double acot(double x) { return 1.570796326794896557998981734 - atan(x); }
 double acoth(double x) { return atanh(1.0 / x); }
 
 /* L-function implementation */
-compresult_t llog(const struct ast_node* argnode, struct varenv* env)
+compresult_t llog(const struct ast_node *argnode, struct varenv *env)
 {
 	compresult_t base = convert_to_double(compute_node(argnode->left, env));
 	if (base.error) return base;
@@ -270,8 +266,7 @@ compresult_t llog(const struct ast_node* argnode, struct varenv* env)
 
 	return COMRES_VD(log(value.value.doble) / log(base.value.doble));
 }
-/* No comparison between bigint and double for now */
-compresult_t lmax(const struct ast_node* argnode, struct varenv* env)
+compresult_t lmax(const struct ast_node *argnode, struct varenv *env)
 {
 	double maximum = -INFINITY;
 	while (argnode)
@@ -286,7 +281,7 @@ compresult_t lmax(const struct ast_node* argnode, struct varenv* env)
 	}
 	return COMRES_VD(maximum);
 }
-compresult_t lmin(const struct ast_node* argnode, struct varenv* env)
+compresult_t lmin(const struct ast_node *argnode, struct varenv *env)
 {
 	double minimum = INFINITY;
 	while (argnode)
@@ -301,7 +296,7 @@ compresult_t lmin(const struct ast_node* argnode, struct varenv* env)
 	}
 	return COMRES_VD(minimum);
 }
-compresult_t lgcd(const struct ast_node* argnode, struct varenv* env)
+compresult_t lgcd(const struct ast_node *argnode, struct varenv *env)
 {
 	bigint_t gcd = { 0 };
 	bi_init_with_i64(&gcd, 0);
@@ -310,7 +305,12 @@ compresult_t lgcd(const struct ast_node* argnode, struct varenv* env)
 	while (argnode)
 	{
 		compresult_t x = compute_node(argnode->left, env);
-		if (x.error) { err = x.error; goto fail; }
+		if (x.error)
+		{
+			number_free(x.value);
+			err = x.error;
+			goto fail;
+		}
 		if (x.value.type != NUMBER_BIGINT) 
 		{
 			err = ERROR_COMPUTE_ILLEGAL_NUMBER_TYPE;
@@ -320,6 +320,7 @@ compresult_t lgcd(const struct ast_node* argnode, struct varenv* env)
 		if (bi_gcd(&gcd, &gcd, &x.value.bint)) { err = -1; goto fail; }
 
 		argnode = argnode->right;
+		number_free(x.value);
 	}
 
 	return COMRES_VBI(gcd);
@@ -328,7 +329,7 @@ fail:
 	bi_free(&gcd);
 	return COMRES_E(err);
 }
-compresult_t llcm(const struct ast_node* argnode, struct varenv* env)
+compresult_t llcm(const struct ast_node *argnode, struct varenv *env)
 {
 	bigint_t lcm = { 0 };
 	bi_init_with_i64(&lcm, 1);
@@ -337,7 +338,12 @@ compresult_t llcm(const struct ast_node* argnode, struct varenv* env)
 	while (argnode)
 	{
 		compresult_t x = compute_node(argnode->left, env);
-		if (x.error) { err = x.error; goto fail; }
+		if (x.error)
+		{
+			number_free(x.value);
+			err = x.error;
+			goto fail;
+		}
 		if (x.value.type != NUMBER_BIGINT)
 		{
 			err = ERROR_COMPUTE_ILLEGAL_NUMBER_TYPE;
@@ -347,6 +353,7 @@ compresult_t llcm(const struct ast_node* argnode, struct varenv* env)
 		if (bi_lcm(&lcm, &lcm, &x.value.bint)) { err = -1; goto fail; }
 
 		argnode = argnode->right;
+		number_free(x.value);
 	}
 
 	return COMRES_VBI(lcm);
@@ -355,66 +362,98 @@ fail:
 	bi_free(&lcm);
 	return COMRES_E(err);
 }
-compresult_t lmod(const struct ast_node* argnode, struct varenv* env)
+
+#define SAFE_EXIT(hld, ret) do { hld = ret; goto exit; } while (0);
+compresult_t lmod(const struct ast_node *argnode, struct varenv *env)
 {
-	compresult_t dividend = compute_node(argnode->left, env);
-	if (dividend.error) return dividend;
-	if (dividend.value.type != NUMBER_BIGINT) return COMRES_E(ERROR_COMPUTE_ILLEGAL_NUMBER_TYPE);
-	if (!argnode->right) return COMRES_E(ERROR_COMPUTE_TOO_FEW_ARGUMENTS);
+	compresult_t toret = COMRES_E(-1), dividend = COMRES_E(-1), divisor = COMRES_E(-1);
+
+	dividend = compute_node(argnode->left, env);
+	if (dividend.error) SAFE_EXIT(toret, dividend);
+	if (dividend.value.type != NUMBER_BIGINT) 
+		SAFE_EXIT(toret, COMRES_E(ERROR_COMPUTE_ILLEGAL_NUMBER_TYPE));
 	
-	compresult_t divisor = compute_node(argnode->right->left, env);
-	if (divisor.error) return divisor;
-	if (divisor.value.type != NUMBER_BIGINT) return COMRES_E(ERROR_COMPUTE_ILLEGAL_NUMBER_TYPE);
+	if (!argnode->right) SAFE_EXIT(toret, COMRES_E(ERROR_COMPUTE_TOO_FEW_ARGUMENTS));
+	divisor = compute_node(argnode->right->left, env);
+	if (divisor.error) SAFE_EXIT(toret, divisor);
+	if (divisor.value.type != NUMBER_BIGINT)
+		SAFE_EXIT(toret, COMRES_E(ERROR_COMPUTE_ILLEGAL_NUMBER_TYPE));
 	
-	if (bi_is_zero(&divisor.value.bint)) return COMRES_E(ERROR_COMPUTE_DIVISION_BY_ZERO);
+	if (bi_is_zero(&divisor.value.bint))
+		SAFE_EXIT(toret, COMRES_E(ERROR_COMPUTE_DIVISION_BY_ZERO));
 
 	bigint_t rem = { 0 };
 	bi_init(&rem, 1);
 	bi_div(NULL, &rem, &dividend.value.bint, &divisor.value.bint);
 	if (rem.sign) bi_add(&rem, &rem, &divisor.value.bint);
 
-	return COMRES_VBI(rem);
-}
-compresult_t lpow(const struct ast_node* argnode, struct varenv* env)
-{
-	compresult_t base = compute_node(argnode->left, env);
-	if (base.error) return base;
-	if (base.value.type != NUMBER_BIGINT) return COMRES_E(ERROR_COMPUTE_ILLEGAL_NUMBER_TYPE);
+	toret = COMRES_VBI(rem);
 
-	if (!argnode->right) return COMRES_E(ERROR_COMPUTE_TOO_FEW_ARGUMENTS);
-	compresult_t exp = compute_node(argnode->right->left, env);
-	if (exp.error) return exp;
-	if (exp.value.type != NUMBER_BIGINT) return COMRES_E(ERROR_COMPUTE_ILLEGAL_NUMBER_TYPE);
+exit:
+	number_free(dividend.value);
+	number_free(divisor.value);
+
+	return toret;
+}
+compresult_t lpow(const struct ast_node *argnode, struct varenv *env)
+{
+	compresult_t toret = COMRES_E(-1), base = COMRES_E(-1), 
+		exp = COMRES_E(-1), mod = COMRES_E(-1);
+
+	base = compute_node(argnode->left, env);
+	if (base.error) SAFE_EXIT(toret, base);
+	if (base.value.type != NUMBER_BIGINT)
+		SAFE_EXIT(toret, COMRES_E(ERROR_COMPUTE_ILLEGAL_NUMBER_TYPE));
+
+	if (!argnode->right) SAFE_EXIT(toret, COMRES_E(ERROR_COMPUTE_TOO_FEW_ARGUMENTS));
+	exp = compute_node(argnode->right->left, env);
+	if (exp.error) SAFE_EXIT(toret, exp);
+	if (exp.value.type != NUMBER_BIGINT)
+		SAFE_EXIT(toret, COMRES_E(ERROR_COMPUTE_ILLEGAL_NUMBER_TYPE));
 	
-	if (!argnode->right->right) return COMRES_E(ERROR_COMPUTE_TOO_FEW_ARGUMENTS);
-	compresult_t mod = compute_node(argnode->right->right->left, env);
-	if (mod.error) return mod;
-	if (mod.value.type != NUMBER_BIGINT) return COMRES_E(ERROR_COMPUTE_ILLEGAL_NUMBER_TYPE);
+	if (!argnode->right->right) SAFE_EXIT(toret, COMRES_E(ERROR_COMPUTE_TOO_FEW_ARGUMENTS));
+	mod = compute_node(argnode->right->right->left, env);
+	if (mod.error) SAFE_EXIT(toret, mod);
+	if (mod.value.type != NUMBER_BIGINT)
+		SAFE_EXIT(toret, COMRES_E(ERROR_COMPUTE_ILLEGAL_NUMBER_TYPE));
 
 	bigint_t res = { 0 };
 	bi_init(&res, 1);
 	bi_pow(&res, &base.value.bint, &exp.value.bint, &mod.value.bint);
 
-	return COMRES_VBI(res);
-}
-compresult_t linv(const struct ast_node* argnode, struct varenv* env)
-{
-	compresult_t base = compute_node(argnode->left, env);
-	if (base.error) return base;
-	if (base.value.type != NUMBER_BIGINT) return COMRES_E(ERROR_COMPUTE_ILLEGAL_NUMBER_TYPE);
+	toret = COMRES_VBI(res);
 
-	if (!argnode->right) return COMRES_E(ERROR_COMPUTE_TOO_FEW_ARGUMENTS);
-	compresult_t mod = compute_node(argnode->right->left, env);
-	if (mod.error) return mod;
-	if (mod.value.type != NUMBER_BIGINT) return COMRES_E(ERROR_COMPUTE_ILLEGAL_NUMBER_TYPE);
+exit:
+	number_free(base.value);
+	number_free(exp.value);
+	number_free(mod.value);
+
+	return toret;
+}
+compresult_t linv(const struct ast_node *argnode, struct varenv *env)
+{
+	compresult_t toret = COMRES_E(-1), base = COMRES_E(-1), mod = COMRES_E(-1);
+
+	base = compute_node(argnode->left, env);
+	if (base.error) SAFE_EXIT(toret, base);
+	if (base.value.type != NUMBER_BIGINT)
+		SAFE_EXIT(toret, COMRES_E(ERROR_COMPUTE_ILLEGAL_NUMBER_TYPE));
+
+	if (!argnode->right) SAFE_EXIT(toret, COMRES_E(ERROR_COMPUTE_TOO_FEW_ARGUMENTS));
+	mod = compute_node(argnode->right->left, env);
+	if (mod.error) SAFE_EXIT(toret, mod);
+	if (mod.value.type != NUMBER_BIGINT)
+		SAFE_EXIT(toret, COMRES_E(ERROR_COMPUTE_ILLEGAL_NUMBER_TYPE));
 
 	bigint_t res = { 0 };
 	bi_init(&res, 1);
-	if (bi_inv(&res, &base.value.bint, &mod.value.bint))
-		return COMRES_E(ERROR_COMPUTE_NO_MINV_EXIST);
-	else return COMRES_VBI(res);
-}
-compresult_t lppr(const struct ast_node* argnode, struct varenv* env)
-{
-	return COMRES_E(-1);
+	int status = bi_inv(&res, &base.value.bint, &mod.value.bint);
+	
+	toret = status ? COMRES_E(ERROR_COMPUTE_NO_MINV_EXIST) : COMRES_VBI(res);
+
+exit:
+	number_free(base.value);
+	number_free(mod.value);
+
+	return toret;
 }

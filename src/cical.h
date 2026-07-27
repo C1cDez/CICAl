@@ -31,19 +31,19 @@
 /* --------------------- CORE --------------------- */
 
 /* long names */
-typedef struct
+typedef struct alpha_name
 {
-	const char* str;
+	const char *str;
 } alpha_name_t;
-const alpha_name_t* get_alpha_name(const char* str);
+const alpha_name_t *get_alpha_name(const char *str);
 
 /* identifiers */
-typedef struct
+typedef struct identifier
 {
 	union
 	{
 		char symbol;
-		const alpha_name_t* alpha;
+		const alpha_name_t *alpha;
 	};
 	enum
 	{
@@ -68,9 +68,11 @@ typedef struct number
 		NUMBER_BIGINT,
 	} type;
 } number_t;
+void number_free(number_t num);
+number_t number_copy(number_t num);
 
 /* variables */
-const struct ast_node* get_variable(identifier_t ident);
+const struct ast_node *get_variable(identifier_t ident);
 int remove_variables(void);
 
 /* functions */
@@ -78,38 +80,36 @@ struct ast_node;
 struct compresult;
 struct varenv;
 
-typedef struct
+typedef struct sfunc
 {
-	const char* name;
-	double (*logic)(double);
+	const char *name;
+	double(*logic)(double);
 } sfunc_t;
-const sfunc_t* get_sfunc(const char* str);
+const sfunc_t *get_sfunc(const char *str);
 
-typedef struct
+typedef struct lfunc
 {
-	const char* name;
-	struct compresult (*logic)(const struct ast_node* node, struct varenv* env);
+	const char *name;
+	struct compresult(*logic)(const struct ast_node *node, struct varenv *env);
 } lfunc_t;
-const lfunc_t* get_lfunc(const char* str);
+const lfunc_t *get_lfunc(const char *str);
 
-typedef struct
+typedef struct dfunc
 {
 	identifier_t ident;
-	const struct ast_node* args;
-	const struct ast_node* impl;
+	struct ast_node *args;
+	struct ast_node *impl;
 } dfunc_t;
-const dfunc_t* get_dfunc(identifier_t ident);
+const dfunc_t *get_dfunc(identifier_t ident);
 int remove_dfuncs(void);
 
 /* main */
 #define EXECUTE_ANNIHILATE_TREE 0x1
 #define EXECUTE_PRINT_RESULT 0x2
 #define EXECUTE_FREE_DEFINABLE 0x4
-int execute(const struct ast_node* root, struct compresult* cr);
+int execute(const struct ast_node *root, struct compresult *cr);
 
 void preload_defaults(void);
-void annihilate_tree(const struct ast_node* node);
+void annihilate_tree(struct ast_node *node);
 void show_core(char c);
 struct compresult get_previous_answer(void);
-int get_precision(void);
-void set_precision(int precision);

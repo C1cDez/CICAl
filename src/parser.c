@@ -8,10 +8,10 @@
 
 typedef struct
 {
-	const token_t* current;
-	ast_node_t* node;
+	const token_t *current;
+	ast_node_t *node;
 } context_t;
-static context_t subctx(context_t old, int skip, ast_node_t* node)
+static context_t subctx(context_t old, int skip, ast_node_t *node)
 {
 	return (context_t) { .current = old.current + skip, .node = node };
 }
@@ -82,7 +82,7 @@ static int parse_identifier(context_t ctx)
 	else if (ctx.current[0].type == TOKEN_ALPHA)
 	{
 		ctx.node->ident.type = IDENTIFIER_ALPHA;
-		ctx.node->ident.alpha = (const alpha_name_t*)ctx.current[0].ptr;
+		ctx.node->ident.alpha = (const alpha_name_t *)ctx.current[0].ptr;
 	}
 	else return 0;
 
@@ -103,19 +103,19 @@ static int parse_sfunction(context_t ctx)
 
 	int skip = 1;
 
-	ast_node_t* primenode = NEW_NODE();
+	ast_node_t *primenode = NEW_NODE();
 	VALID_NODE(primenode);
 	int primeskip = parse_primary(subctx(ctx, 1, primenode));
 	if (primeskip <= 0)
 	{
 		annihilate_tree(primenode);
-		return primeskip ? primeskip : ERROR_PARSER_EXPECTED_ARGUMENT;
+		return primeskip ? primeskip : (int)ERROR_PARSER_EXPECTED_ARGUMENT;
 	}
 
 	skip += primeskip;
 
 	ctx.node->type = NODE_SFUNCTION;
-	ctx.node->sfunc = (const sfunc_t*)ctx.current[0].ptr;
+	ctx.node->sfunc = (const sfunc_t *)ctx.current[0].ptr;
 	ctx.node->left = primenode;
 	ctx.node->right = NULL;
 
@@ -132,7 +132,7 @@ static int parse_lfunction(context_t ctx)
 
 	skip++;
 
-	ast_node_t* argsnode = NEW_NODE();
+	ast_node_t *argsnode = NEW_NODE();
 	VALID_NODE(argsnode);
 	int argsskip = parse_arguments(subctx(ctx, skip, argsnode));
 	if (argsskip <= 0)
@@ -148,7 +148,7 @@ static int parse_lfunction(context_t ctx)
 	skip++;
 
 	ctx.node->type = NODE_LFUNCTION;
-	ctx.node->lfunc = (const lfunc_t*)ctx.current[0].ptr;
+	ctx.node->lfunc = (const lfunc_t *)ctx.current[0].ptr;
 	ctx.node->left = argsnode;
 	ctx.node->right = NULL;
 
@@ -168,7 +168,7 @@ static int parse_dfunction(context_t ctx)
 
 	skip++;
 
-	ast_node_t* argsnode = NEW_NODE();
+	ast_node_t *argsnode = NEW_NODE();
 	VALID_NODE(argsnode);
 	int argsskip = parse_arguments(subctx(ctx, skip, argsnode));
 	if (argsskip <= 0)
@@ -193,12 +193,12 @@ static int parse_arguments(context_t ctx)
 {
 	int skip = -1;
 
-	ast_node_t* tempnode = ctx.node;
+	ast_node_t *tempnode = ctx.node;
 	do
 	{
 		skip++;
 
-		ast_node_t* exprnode = NEW_NODE();
+		ast_node_t *exprnode = NEW_NODE();
 		VALID_NODE(exprnode);
 		int exprskip = parse_expression(subctx(ctx, skip, exprnode));
 		if (exprskip <= 0)
@@ -209,7 +209,7 @@ static int parse_arguments(context_t ctx)
 
 		skip += exprskip;
 
-		ast_node_t* newtempnode = NEW_NODE();
+		ast_node_t *newtempnode = NEW_NODE();
 		VALID_NODE(newtempnode);
 		tempnode->type = NODE_ARGUMENT_JOINT;
 		tempnode->left = exprnode;
@@ -218,7 +218,7 @@ static int parse_arguments(context_t ctx)
 	} while (ctx.current[skip].type == TOKEN_COMMA);
 
 	/* remove dummy node */
-	ast_node_t* temp = ctx.node;
+	ast_node_t *temp = ctx.node;
 	while (temp->right->type == NODE_ARGUMENT_JOINT) temp = temp->right;
 	free(temp->right);
 	temp->right = NULL;
@@ -251,7 +251,7 @@ static int parse_primary(context_t ctx)
 	{
 		skip++;
 
-		ast_node_t* exprnode = NEW_NODE();
+		ast_node_t *exprnode = NEW_NODE();
 		VALID_NODE(exprnode);
 		int exprskip = parse_expression(subctx(ctx, 1, exprnode));
 		if (exprskip <= 0)
@@ -273,7 +273,7 @@ static int parse_primary(context_t ctx)
 	{
 		skip++;
 
-		ast_node_t* exprnode = NEW_NODE();
+		ast_node_t *exprnode = NEW_NODE();
 		VALID_NODE(exprnode);
 		int exprskip = parse_expression(subctx(ctx, 1, exprnode));
 		if (exprskip <= 0)
@@ -296,7 +296,7 @@ static int parse_primary(context_t ctx)
 }
 static int parse_multiple(context_t ctx)
 {
-	ast_node_t* primenode = NEW_NODE();
+	ast_node_t *primenode = NEW_NODE();
 	VALID_NODE(primenode);
 	int primeskip = parse_primary(subctx(ctx, 0, primenode));
 	if (primeskip <= 0)
@@ -311,7 +311,7 @@ static int parse_multiple(context_t ctx)
 	{
 		skip++;
 		
-		ast_node_t* powernode = NEW_NODE();
+		ast_node_t *powernode = NEW_NODE();
 		VALID_NODE(powernode);
 		int powerctx = parse_power(subctx(ctx, skip, powernode));
 		if (powerctx <= 0)
@@ -337,7 +337,7 @@ static int parse_power(context_t ctx)
 {
 	if (ctx.current[0].type == TOKEN_OPERATION && ctx.current[0].sym == '-')
 	{
-		ast_node_t* multnode = NEW_NODE();
+		ast_node_t *multnode = NEW_NODE();
 		VALID_NODE(multnode);
 		int multskip = parse_multiple(subctx(ctx, 1, multnode));
 		if (multskip <= 0)
@@ -355,7 +355,7 @@ static int parse_power(context_t ctx)
 }
 static int parse_super(context_t ctx)
 {
-	ast_node_t* initmultnode = NEW_NODE();
+	ast_node_t *initmultnode = NEW_NODE();
 	VALID_NODE(initmultnode);
 	int initmultskip = parse_multiple(subctx(ctx, 0, initmultnode));
 	if (initmultskip <= 0)
@@ -366,10 +366,10 @@ static int parse_super(context_t ctx)
 
 	int skip = initmultskip;
 
-	ast_node_t* tempnode = initmultnode;
+	ast_node_t *tempnode = initmultnode;
 	while (1)
 	{
-		ast_node_t* multnode = NEW_NODE();
+		ast_node_t *multnode = NEW_NODE();
 		VALID_NODE(multnode);
 		int multskip = parse_multiple(subctx(ctx, skip, multnode));
 		if (multskip == 0)
@@ -386,7 +386,7 @@ static int parse_super(context_t ctx)
 
 		skip += multskip;
 
-		ast_node_t* newtempnode = NEW_NODE();
+		ast_node_t *newtempnode = NEW_NODE();
 		VALID_NODE(newtempnode);
 		newtempnode->type = NODE_MULTIPLY;
 		newtempnode->left = tempnode;
@@ -402,7 +402,7 @@ static int parse_factor(context_t ctx)
 {
 	if (ctx.current[0].type == TOKEN_OPERATION && ctx.current[0].sym == '-')
 	{
-		ast_node_t* supernode = NEW_NODE();
+		ast_node_t *supernode = NEW_NODE();
 		VALID_NODE(supernode);
 		int superskip = parse_super(subctx(ctx, 1, supernode));
 		if (superskip <= 0)
@@ -420,7 +420,7 @@ static int parse_factor(context_t ctx)
 }
 static int parse_term(context_t ctx)
 {
-	ast_node_t* initfactornode = NEW_NODE();
+	ast_node_t *initfactornode = NEW_NODE();
 	VALID_NODE(initfactornode);
 	int initfactorskip = parse_factor(subctx(ctx, 0, initfactornode));
 	if (initfactorskip <= 0)
@@ -431,7 +431,7 @@ static int parse_term(context_t ctx)
 
 	int skip = initfactorskip;
 
-	ast_node_t* tempnode = initfactornode;
+	ast_node_t *tempnode = initfactornode;
 	while (ctx.current[skip].type == TOKEN_OPERATION && 
 		(ctx.current[skip].sym == '*' || ctx.current[skip].sym == '/'))
 	{
@@ -439,7 +439,7 @@ static int parse_term(context_t ctx)
 
 		skip++;
 
-		ast_node_t* factornode = NEW_NODE();
+		ast_node_t *factornode = NEW_NODE();
 		VALID_NODE(factornode);
 		int factorskip = parse_factor(subctx(ctx, skip, factornode));
 		if (factorskip <= 0)
@@ -450,8 +450,8 @@ static int parse_term(context_t ctx)
 		}
 
 		skip += factorskip;
-
-		ast_node_t* newtempnode = NEW_NODE();
+		
+		ast_node_t *newtempnode = NEW_NODE();
 		VALID_NODE(newtempnode);
 		newtempnode->type = multop ? NODE_MULTIPLY : NODE_DIVIDE;
 		newtempnode->left = tempnode;
@@ -465,7 +465,7 @@ static int parse_term(context_t ctx)
 }
 static int parse_expression(context_t ctx)
 {
-	ast_node_t* inittermnode = NEW_NODE();
+	ast_node_t *inittermnode = NEW_NODE();
 	VALID_NODE(inittermnode);
 	int inittermskip = parse_term(subctx(ctx, 0, inittermnode));
 	if (inittermskip <= 0)
@@ -476,7 +476,7 @@ static int parse_expression(context_t ctx)
 
 	int skip = inittermskip;
 
-	ast_node_t* tempnode = inittermnode;
+	ast_node_t *tempnode = inittermnode;
 	while (ctx.current[skip].type == TOKEN_OPERATION &&
 		(ctx.current[skip].sym == '+' || ctx.current[skip].sym == '-'))
 	{
@@ -484,7 +484,7 @@ static int parse_expression(context_t ctx)
 
 		skip++;
 
-		ast_node_t* termnode = NEW_NODE();
+		ast_node_t *termnode = NEW_NODE();
 		VALID_NODE(termnode);
 		int termskip = parse_term(subctx(ctx, skip, termnode));
 		if (termskip <= 0)
@@ -496,7 +496,7 @@ static int parse_expression(context_t ctx)
 
 		skip += termskip;
 
-		ast_node_t* newtempnode = NEW_NODE();
+		ast_node_t *newtempnode = NEW_NODE();
 		VALID_NODE(newtempnode);
 		newtempnode->type = addop ? NODE_ADD : NODE_SUBTRACT;
 		newtempnode->left = tempnode;
@@ -523,7 +523,7 @@ static int parse_definable(context_t ctx)
 
 	skip++;
 
-	ast_node_t* argsnode = NEW_NODE();
+	ast_node_t *argsnode = NEW_NODE();
 	VALID_NODE(argsnode);
 	int argsskip = parse_arguments(subctx(ctx, skip, argsnode));
 	if (argsskip <= 0)
@@ -545,7 +545,7 @@ static int parse_definable(context_t ctx)
 }
 static int parse_statement(context_t ctx)
 {
-	ast_node_t* defnode = NEW_NODE();
+	ast_node_t *defnode = NEW_NODE();
 	VALID_NODE(defnode);
 	int defskip = parse_definable(subctx(ctx, 0, defnode));
 	if (defskip <= 0 || ctx.current[defskip].type != TOKEN_EQUAL)
@@ -555,19 +555,19 @@ static int parse_statement(context_t ctx)
 		int skip = parse_expression(ctx);
 		if (skip <= 0) return skip;
 		else return (ctx.current[skip].type == TOKEN_EOL) ?
-			skip + 1 : ERROR_PARSER_NOT_FINISHED_STATEMENT;
+			skip + 1 : (int)ERROR_PARSER_NOT_FINISHED_STATEMENT;
 	}
 
 	int skip = defskip + 1;
 
-	ast_node_t* exprnode = NEW_NODE();
+	ast_node_t *exprnode = NEW_NODE();
 	VALID_NODE(exprnode);
 	int exprskip = parse_expression(subctx(ctx, skip, exprnode));
 	if (exprskip <= 0)
 	{
 		annihilate_tree(exprnode);
 		annihilate_tree(defnode);
-		return exprskip ? exprskip : ERROR_PARSER_EXPECTED_DEFINITION;
+		return exprskip ? exprskip : (int)ERROR_PARSER_EXPECTED_DEFINITION;
 	}
 
 	skip += exprskip;
@@ -581,7 +581,7 @@ static int parse_statement(context_t ctx)
 	return skip;
 }
 
-int parse_content(const struct token* tokens, ast_node_t* root)
+int parse_content(const struct token *tokens, ast_node_t *root)
 {
 	return parse_statement((context_t) { tokens, root });
 }

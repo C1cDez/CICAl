@@ -12,7 +12,7 @@
 
 /* ------------ INIT & FREE ------------ */
 
-int bi_init(bigint_t* bi, int initsize)
+int bi_init(bigint_t *bi, int initsize)
 {
 	if (!bi) return 1;
 
@@ -23,7 +23,7 @@ int bi_init(bigint_t* bi, int initsize)
 	if (!bi->dlimbs) return 1;
 	return 0;
 }
-void bi_free(bigint_t* bi)
+void bi_free(bigint_t *bi)
 {
 	if (!bi) return;
 
@@ -33,7 +33,7 @@ void bi_free(bigint_t* bi)
 	bi->size = 0;
 	bi->alloc = 0;
 }
-int bi_copy(bigint_t* dest, const bigint_t* src)
+int bi_copy(bigint_t *dest, const bigint_t *src)
 {
 	if (!dest || !src) return 1;
 	if (dest == src) return 0;
@@ -46,7 +46,7 @@ int bi_copy(bigint_t* dest, const bigint_t* src)
 	dest->sign = src->sign;
 	return 0;
 }
-int bi_is_zero(const bigint_t* bi)
+int bi_is_zero(const bigint_t *bi)
 {
 	return bi->alloc > 0 && bi->size == 1 && bi->dlimbs[0] == 0 && bi->sign == 0;
 }
@@ -54,22 +54,22 @@ int bi_is_zero(const bigint_t* bi)
 
 /* ------------ HELPERS ------------ */
 
-static int _bi_resize(bigint_t* bi, int newsize)
+static int _bi_resize(bigint_t *bi, int newsize)
 {
 	if (!bi) return 1;
-	uint8_t* newdlimbs = realloc(bi->dlimbs, newsize * sizeof(uint8_t));
+	uint8_t *newdlimbs = realloc(bi->dlimbs, newsize * sizeof(uint8_t));
 	if (!newdlimbs) return 1;
 	bi->dlimbs = newdlimbs;
 	bi->alloc = newsize;
 	if (bi->size > bi->alloc) bi->size = bi->alloc;
 	return 0;
 }
-static void _bi_trim(bigint_t* bi)
+static void _bi_trim(bigint_t *bi)
 {
 	bi->size = bi->alloc;
 	while (bi->size > 1 && bi->dlimbs[bi->size - 1] == 0) bi->size--;
 }
-static void _bi_validate_zero(bigint_t* bi)
+static void _bi_validate_zero(bigint_t *bi)
 {
 	if (bi->size == 1 && bi->dlimbs[0] == 0)
 		bi->sign = 0;
@@ -78,7 +78,7 @@ static void _bi_validate_zero(bigint_t* bi)
 
 /* ------------ STRINGS ------------ */
 
-int bi_init_with_str(bigint_t* bi, const char* str)
+int bi_init_with_str(bigint_t *bi, const char *str)
 {
 	if (!bi || !str) return 1;
 	int len = (int)strlen(str);
@@ -94,7 +94,7 @@ int bi_init_with_str(bigint_t* bi, const char* str)
 	_bi_validate_zero(bi);
 	return 0;
 }
-int bi_init_with_i64(bigint_t* bi, int64_t x)
+int bi_init_with_i64(bigint_t *bi, int64_t x)
 {
 	if (!bi) return 1;
 
@@ -118,11 +118,11 @@ int bi_init_with_i64(bigint_t* bi, int64_t x)
 	_bi_validate_zero(bi);
 	return 0;
 }
-char* bi_to_str(const bigint_t* bi)
+char *bi_to_str(const bigint_t *bi)
 {
 	if (!bi) return NULL;
 
-	char* str = calloc(bi->size + (bi->sign ? 1 : 0) + 1, sizeof(char));
+	char *str = calloc(bi->size + (bi->sign ? 1 : 0) + 1, sizeof(char));
 	if (!str) return NULL;
 
 	int off = 0;
@@ -138,7 +138,7 @@ char* bi_to_str(const bigint_t* bi)
 
 	return str;
 }
-double bi_as_double(const bigint_t* bi)
+double bi_as_double(const bigint_t *bi)
 {
 	double res = 0.0;
 	double power = 1.0;
@@ -153,7 +153,7 @@ double bi_as_double(const bigint_t* bi)
 
 /* ------------ ARITHMETIC ------------ */
 
-static int _bi_cmp_abs(const bigint_t* a, const bigint_t* b)
+static int _bi_cmp_abs(const bigint_t *a, const bigint_t *b)
 {
 	if (a->size > b->size) return 1;
 	if (a->size < b->size) return -1;
@@ -166,7 +166,7 @@ static int _bi_cmp_abs(const bigint_t* a, const bigint_t* b)
 	}
 	return 0;
 }
-int bi_cmp(const bigint_t* a, const bigint_t* b)
+int bi_cmp(const bigint_t *a, const bigint_t *b)
 {
 	if (!a || !b) return 0;
 
@@ -177,20 +177,20 @@ int bi_cmp(const bigint_t* a, const bigint_t* b)
 	return a->sign ? -c : c;
 }
 
-int bi_negate(bigint_t* r, const bigint_t* x)
+int bi_negate(bigint_t *r, const bigint_t *x)
 {
 	if (bi_copy(r, x)) return 1;
 	r->sign = !x->sign;
 	_bi_validate_zero(r);
 	return 0;
 }
-int bi_abs(bigint_t* r, const bigint_t* x)
+int bi_abs(bigint_t *r, const bigint_t *x)
 {
 	if (bi_copy(r, x)) return 1;
 	r->sign = 0;
 	return 0;
 }
-static int _bi_add_unsigned(bigint_t* r, const bigint_t* a, const bigint_t* b)
+static int _bi_add_unsigned(bigint_t *r, const bigint_t *a, const bigint_t *b)
 {
 	int maxlen = _BI_MAX_LEN(a, b), minlen = _BI_MIN_LEN(a, b);
 	int reslen = maxlen + 1;
@@ -213,7 +213,7 @@ static int _bi_add_unsigned(bigint_t* r, const bigint_t* a, const bigint_t* b)
 		r->dlimbs[i] = (uint8_t)d;
 	}
 
-	const bigint_t* longer = _BI_MAX(a, b);
+	const bigint_t *longer = _BI_MAX(a, b);
 	for (; i < maxlen; i++)
 	{
 		int d = longer->dlimbs[i] + carry;
@@ -231,7 +231,7 @@ static int _bi_add_unsigned(bigint_t* r, const bigint_t* a, const bigint_t* b)
 	return 0;
 }
 /* a must be >= than b */
-static int _bi_sub_unsigned(bigint_t* r, const bigint_t* a, const bigint_t* b)
+static int _bi_sub_unsigned(bigint_t *r, const bigint_t *a, const bigint_t *b)
 {
 	int maxlen = _BI_MAX_LEN(a, b), minlen = _BI_MIN_LEN(a, b);
 	if (maxlen > r->alloc)
@@ -269,7 +269,7 @@ static int _bi_sub_unsigned(bigint_t* r, const bigint_t* a, const bigint_t* b)
 	return 0;
 }
 
-int bi_add(bigint_t* sum, const bigint_t* a, const bigint_t* b)
+int bi_add(bigint_t *sum, const bigint_t *a, const bigint_t *b)
 {
 	if (!sum || !a || !b) return 1;
 
@@ -301,7 +301,7 @@ int bi_add(bigint_t* sum, const bigint_t* a, const bigint_t* b)
 	_bi_validate_zero(sum);
 	return 0;
 }
-int bi_sub(bigint_t* diff, const bigint_t* a, const bigint_t* b)
+int bi_sub(bigint_t *diff, const bigint_t *a, const bigint_t *b)
 {
 	if (!diff || !a || !b) return 1;
 
@@ -335,7 +335,7 @@ int bi_sub(bigint_t* diff, const bigint_t* a, const bigint_t* b)
 	return 0;
 }
 
-int bi_mul(bigint_t* prod, const bigint_t* a, const bigint_t* b)
+int bi_mul(bigint_t *prod, const bigint_t *a, const bigint_t *b)
 {
 	if (!prod || !a || !b) return 1;
 
@@ -348,7 +348,7 @@ int bi_mul(bigint_t* prod, const bigint_t* a, const bigint_t* b)
 
 	int reslen = a->size + b->size;
 
-	uint8_t* temp = calloc(reslen, sizeof(uint8_t));
+	uint8_t *temp = calloc(reslen, sizeof(uint8_t));
 	if (!temp) return 1;
 
 	for (int i = 0; i < a->size; i++)
@@ -380,7 +380,7 @@ int bi_mul(bigint_t* prod, const bigint_t* a, const bigint_t* b)
 	return 0;
 }
 /* long division for base 10 (a.k.a. schoolbook method) */
-int bi_div(bigint_t* quot, bigint_t* rem, const bigint_t* a, const bigint_t* b)
+int bi_div(bigint_t *quot, bigint_t *rem, const bigint_t *a, const bigint_t *b)
 {
 	if (!a || !b) return 1;
 
@@ -455,7 +455,7 @@ int bi_div(bigint_t* quot, bigint_t* rem, const bigint_t* a, const bigint_t* b)
 	return 0;
 }
 
-static int _bi_div2_and_was_odd(bigint_t* bi)
+static int _bi_div2_and_was_odd(bigint_t *bi)
 {
 	int carry = 0;
 	for (int i = bi->size - 1; i >= 0; i--)
@@ -467,7 +467,7 @@ static int _bi_div2_and_was_odd(bigint_t* bi)
 	_bi_trim(bi);
 	return carry == 1;
 }
-int bi_pow(bigint_t* res, const bigint_t* base, const bigint_t* exp, const bigint_t* mod)
+int bi_pow(bigint_t *res, const bigint_t *base, const bigint_t *exp, const bigint_t *mod)
 {
 	if (!res || !base || !exp) return 1;
 	if (exp->sign) return 1;
@@ -523,7 +523,7 @@ fail:
 
 /* ------------- ADDITIONAL ALGORITHMS ------------- */
 
-int bi_gcd(bigint_t* gcd, const bigint_t* a, const bigint_t* b)
+int bi_gcd(bigint_t *gcd, const bigint_t *a, const bigint_t *b)
 {
 	if (!gcd || !a || !b) return 1;
 
@@ -554,7 +554,7 @@ fail:
 }
 
 /* No idea why it's here */
-int bi_gcdext(bigint_t* gcd, const bigint_t* a, bigint_t* s, const bigint_t* b, bigint_t* t)
+int bi_gcdext(bigint_t *gcd, const bigint_t *a, bigint_t *s, const bigint_t *b, bigint_t *t)
 {
 	if (!a || !b) return 1;
 
@@ -630,7 +630,7 @@ fail:
 	return 1;
 }
 
-int bi_lcm(bigint_t* lcm, const bigint_t* a, const bigint_t* b)
+int bi_lcm(bigint_t *lcm, const bigint_t *a, const bigint_t *b)
 {
 	if (!lcm || !a || !b) return 1;
 
@@ -660,7 +660,7 @@ fail:
 	return 1;
 }
 
-int bi_inv(bigint_t* inv, const bigint_t* a, const bigint_t* m)
+int bi_inv(bigint_t *inv, const bigint_t *a, const bigint_t *m)
 {
 	if (!inv || !a || !m) return 1;
 	if (bi_is_zero(a) || bi_is_zero(m)) return 1;

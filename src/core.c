@@ -14,7 +14,7 @@ static const alpha_name_t ALPHA_NAMES[] = {
 	{ "alpha" }, { "beta" }, { "gamma" }, { "zeta" }, { "mu" }, 
 	{ "pi" }, { "rho" }, { "tau" }, { "phi" }, { "psi" }
 };
-const alpha_name_t* get_alpha_name(const char* str)
+const alpha_name_t *get_alpha_name(const char *str)
 {
 	for (int i = 0; i < countof(ALPHA_NAMES); i++)
 	{
@@ -27,17 +27,39 @@ const alpha_name_t* get_alpha_name(const char* str)
 
 /* --------------------- S- & L- FUNCTIONS --------------------- */
 
-static sfunc_t SFUNCS[] = {
-	{ "sqrt" }, { "cbrt" }, { "ln" }, { "lg" }, { "exp" }, { "erf" },
+#define SFUNCS_LIST \
+	X("sqrt",		sqrt  ) \
+	X("cbrt",		cbrt  ) \
+	X("ln",			log   ) \
+	X("lg",			log10 ) \
+	X("exp",		exp   ) \
+	X("erf",		erf   ) \
+	X("arcsinh",	asinh ) \
+	X("arccosh",	acosh ) \
+	X("arctanh",	atanh ) \
+	X("arccoth",	acoth ) \
+	X("arcsin",		asin  ) \
+	X("arccos",		acos  ) \
+	X("arctan",		atan  ) \
+	X("arccot",		acot  ) \
+	X("sinh",		sinh  ) \
+	X("cosh",		cosh  ) \
+	X("tanh",		tanh  ) \
+	X("coth",		coth  ) \
+	X("sin",		sin   ) \
+	X("cos",		cos   ) \
+	X("tan",		tan   ) \
+	X("cot",		cot   ) \
+	X("floor",		floor ) \
+	X("ceil",		ceil  ) \
+	X("sign",		sign  )
 
-	{ "arcsinh" },	{ "arccosh" },	{ "arctanh" },	{ "arccoth" }, 
-	{ "arcsin" },	{ "arccos" },	{ "arctan" },	{ "arccot" },
-	{ "sinh" },		{ "cosh" },		{ "tanh" },		{ "coth" },
-	{ "sin" },		{ "cos" },		{ "tan" },		{ "cot" },
-	
-	{ "floor" }, { "ceil" }, { "sign" }
+static sfunc_t SFUNCS[] = {
+#define X(name, func) { name, .logic = NULL },
+	SFUNCS_LIST
+#undef X
 };
-const sfunc_t* get_sfunc(const char* str)
+const sfunc_t *get_sfunc(const char *str)
 {
 	for (int i = 0; i < countof(SFUNCS); i++)
 	{
@@ -48,47 +70,20 @@ const sfunc_t* get_sfunc(const char* str)
 }
 static void declare_sfuncs(void)
 {
-	SFUNCS[0].logic = sqrt;
-	SFUNCS[1].logic = cbrt;
-	SFUNCS[2].logic = log;
-	SFUNCS[3].logic = log10;
-	SFUNCS[4].logic = exp;
-	SFUNCS[5].logic = erf;
-
-	SFUNCS[6].logic = asinh;
-	SFUNCS[7].logic = acosh;
-	SFUNCS[8].logic = atanh;
-	SFUNCS[9].logic = acoth;
-
-	SFUNCS[10].logic = asin;
-	SFUNCS[11].logic = acos;
-	SFUNCS[12].logic = atan;
-	SFUNCS[13].logic = acot;
-
-	SFUNCS[14].logic = sinh;
-	SFUNCS[15].logic = cosh;
-	SFUNCS[16].logic = tanh;
-	SFUNCS[17].logic = coth;
-
-	SFUNCS[18].logic = sin;
-	SFUNCS[19].logic = cos;
-	SFUNCS[20].logic = tan;
-	SFUNCS[21].logic = cot;
-
-	SFUNCS[22].logic = floor;
-	SFUNCS[23].logic = ceil;
-	SFUNCS[24].logic = sign;
+	int i = 0;   /* silly msvc can not locate functions at compile time */
+#define X(name, func) SFUNCS[i++].logic = func;
+	SFUNCS_LIST
+#undef X
 }
 
-static lfunc_t LFUNCS[] = {
-	{ "log" },
-	{ "max" }, { "min" },
+static const lfunc_t LFUNCS[] = {
+	{ "log", llog },
+	{ "max", lmax }, { "min", lmin },
 	/* int funcs */
-	{ "lcm" }, { "gcd" },
-	{ "mod" }, { "pow" }, { "inv" },
-	{ "ppr" }
+	{ "lcm", llcm }, { "gcd", lgcd },
+	{ "mod", lmod }, { "pow", lpow }, { "inv", linv },
 };
-const lfunc_t* get_lfunc(const char* str)
+const lfunc_t *get_lfunc(const char *str)
 {
 	for (int i = 0; i < countof(LFUNCS); i++)
 	{
@@ -97,18 +92,6 @@ const lfunc_t* get_lfunc(const char* str)
 	}
 	return NULL;
 }
-static void declare_lfuncs(void)
-{
-	LFUNCS[0].logic = llog;
-	LFUNCS[1].logic = lmax;
-	LFUNCS[2].logic = lmin;
-	LFUNCS[3].logic = llcm;
-	LFUNCS[4].logic = lgcd;
-	LFUNCS[5].logic = lmod;
-	LFUNCS[6].logic = lpow;
-	LFUNCS[7].logic = linv;
-	LFUNCS[8].logic = lppr;
-}
 
 
 /* --------------------- VARIABLES --------------------- */
@@ -116,11 +99,11 @@ static void declare_lfuncs(void)
 static struct
 {
 	identifier_t ident;
-	const ast_node_t* value;
+	ast_node_t *value;
 	int mut;
 } VARSET[1024] = { 0 };
 
-static void insert_new_variable(identifier_t ident, const ast_node_t* value, int mut)
+static void insert_new_variable(identifier_t ident, ast_node_t *value, int mut)
 {
 	int i = 0;
 	for (; i < countof(VARSET); i++)
@@ -135,7 +118,7 @@ static void insert_new_variable(identifier_t ident, const ast_node_t* value, int
 	VARSET[i].value = value;
 	VARSET[i].mut = mut;
 }
-const struct ast_node* get_variable(identifier_t ident)
+const struct ast_node *get_variable(identifier_t ident)
 {
 	for (int i = 0; i < countof(VARSET); i++)
 	{
@@ -163,7 +146,7 @@ int remove_variables(void)
 /* --------------------- FUNCTIONS --------------------- */
 
 static dfunc_t FUNCSET[1024] = { 0 };
-const dfunc_t* get_dfunc(identifier_t ident)
+const dfunc_t *get_dfunc(identifier_t ident)
 {
 	for (int i = 0; i < countof(FUNCSET); i++)
 	{
@@ -171,7 +154,7 @@ const dfunc_t* get_dfunc(identifier_t ident)
 	}
 	return NULL;
 }
-static int insert_new_dfunc(identifier_t ident, const ast_node_t* args, const ast_node_t* impl)
+static int insert_new_dfunc(identifier_t ident, ast_node_t *args, ast_node_t *impl)
 {
 	int i = 0;
 	for (; i < countof(FUNCSET); i++)
@@ -181,7 +164,7 @@ static int insert_new_dfunc(identifier_t ident, const ast_node_t* args, const as
 
 	if (i == countof(FUNCSET)) PANIC("Funcset ended");
 
-	const ast_node_t* temp = args;
+	const ast_node_t *temp = args;
 	while (temp)
 	{
 		if (temp->left->type != NODE_VARIABLE) return 1;
@@ -217,14 +200,14 @@ int ident_eq(identifier_t a, identifier_t b)
 {
 	return a.type == b.type && a.alpha == b.alpha && a.symbol == b.symbol && a.subscript == b.subscript;
 }
-void annihilate_tree(const struct ast_node* node)
+void annihilate_tree(struct ast_node *node)
 {
 	if (!node) return;
 	if (node->left) annihilate_tree(node->left);
 	if (node->right) annihilate_tree(node->right);
 	
-	if (node->type == NODE_NUMBER && node->number.type == NUMBER_BIGINT)
-		bi_free(&node->number.bint);
+	if (node->type == NODE_NUMBER)
+		number_free(node->number);
 
 	free(node);
 }
@@ -266,7 +249,7 @@ void show_core(char c)
 
 			print_identifier(FUNCSET[i].ident);
 			putchar('(');
-			const ast_node_t* arg = FUNCSET[i].args;
+			const ast_node_t *arg = FUNCSET[i].args;
 			while (arg->right)
 			{
 				print_identifier(arg->left->ident);
@@ -281,28 +264,29 @@ void show_core(char c)
 		putchar('\n');
 	}
 }
-
-static compresult_t PREVIOUS_ANSWER = { .value = { 0 }, .error = ERROR_COMPUTE_NO_PREVIOUS_ANSWER_KNOWN };
-struct compresult get_previous_answer(void)
+void number_free(number_t num)
 {
-	if (PREVIOUS_ANSWER.value.type == NUMBER_BIGINT)
+	if (num.type == NUMBER_BIGINT)
+		bi_free(&num.bint);
+}
+number_t number_copy(number_t num)
+{
+	if (num.type == NUMBER_DOUBLE)
+		return num;
+	else if (num.type == NUMBER_BIGINT)
 	{
 		/* do NOT transfer ownership */
 		bigint_t cpy = { 0 };
-		bi_copy(&cpy, &PREVIOUS_ANSWER.value.bint);
-		return (compresult_t) { .value = { .type = NUMBER_BIGINT, .bint = cpy }, .error = 0 };
+		bi_copy(&cpy, &num.bint);
+		return (number_t) { .type = NUMBER_BIGINT, .bint = cpy };
 	}
-	else return PREVIOUS_ANSWER;
+	else return (number_t){ 0 };
 }
 
-static int PRECISION = 6;
-int get_precision(void)
+static compresult_t PREVIOUS_ANSWER = { .value = { { 0 }, 0 }, .error = ERROR_COMPUTE_NO_PREVIOUS_ANSWER_KNOWN };
+struct compresult get_previous_answer(void)
 {
-	return PRECISION;
-}
-void set_precision(int precision)
-{
-	if (precision >= 0) PRECISION = precision;
+	return (compresult_t) { .error = PREVIOUS_ANSWER.error, .value = number_copy(PREVIOUS_ANSWER.value) };
 }
 
 
@@ -310,7 +294,7 @@ void set_precision(int precision)
 
 static void preload_consts(identifier_t ident, double value)
 {
-	ast_node_t* node = calloc(1, sizeof(ast_node_t));
+	ast_node_t *node = calloc(1, sizeof(ast_node_t));
 	if (!node) PANIC("Undefined unallocation");
 	node->type = NODE_NUMBER;
 	node->number.type = NUMBER_DOUBLE;
@@ -333,13 +317,12 @@ void preload_defaults(void)
 		-0.57721566490153286060651209008);
 
 	declare_sfuncs();
-	declare_lfuncs();
 }
 
 
 /* --------------------- MAIN --------------------- */
 
-int execute(const struct ast_node* root, struct compresult* cr)
+int execute(const struct ast_node *root, struct compresult *cr)
 {
 	if (root->type == NODE_ASSIGNMENT)
 	{
@@ -368,8 +351,7 @@ int execute(const struct ast_node* root, struct compresult* cr)
 		*cr = compute_node(root, NULL);
 		if (!cr->error)
 		{
-			if (PREVIOUS_ANSWER.value.type == NUMBER_BIGINT)
-				bi_free(&PREVIOUS_ANSWER.value.bint);
+			number_free(PREVIOUS_ANSWER.value);
 			PREVIOUS_ANSWER = *cr;
 		}
 		return EXECUTE_ANNIHILATE_TREE | EXECUTE_PRINT_RESULT;

@@ -26,10 +26,10 @@ typedef struct token
 	union
 	{
 		char sym;
-		char* str;
-		void* ptr;
+		char *str;
+		void *ptr;
 	};
 } token_t;
 
-int tokenize_line(const char* line, token_t* tokens, int maxsize);
-void cleanup_tokens(token_t* tokens, int count);
+int tokenize_line(const char *line, token_t *tokens, int maxsize);
+void cleanup_tokens(token_t *tokens, int count);

@@ -1,8 +1,8 @@
 # CICAL
 
 CICAL (C Interpretable Calculator) is a console calculator
-capable of handling complex algebraic expressions
-and dynamic variable reassignment.
+capable of handling complex algebraic expressions,
+dynamic variable reassignment, and user-defined functions evaluation.
 
 ---
 
@@ -11,15 +11,13 @@ and dynamic variable reassignment.
 ### Building
 For **Windows**:
 ```bat
-gcc src/*.c -o cical.exe
+gcc src/*.c -o cical.exe -Wall -Wextra
 ```
 
 For **Linux**:
 ```bash
-gcc src/*.c -o cical -lm
+gcc src/*.c -o cical -lm -Wall -Wextra
 ```
-
-*(Please ignore all compiler warnings).*
 
 ### Running
 ```bash
@@ -38,7 +36,7 @@ but must be separated by semicolons `;`.
 ## User manual
 
 This manual describes end-user interaction with CICAL.
-You can also read this manual inside the program using the !m control command.
+You can also read this manual inside the program using the `!m` control command.
 
 **Basic arithmetic operations** are the following:
 `+` (addition), `-` (subtraction), `*` (multiplication), and `/` (division).

@@ -97,20 +97,25 @@ static void print_manual(void)
 }
 
 
+static int PRECISION = 6;
 #define DEFAULT_TOKENS_MAXCOUNT 1024
 static token_t TOKENS[DEFAULT_TOKENS_MAXCOUNT] = { 0 };
 
-static void handle_line(const char* line)
+static void handle_line(const char *line)
 {
 	int err = 0;
 
 	int count = tokenize_line(line, TOKENS, DEFAULT_TOKENS_MAXCOUNT);
 	if (count < 0) { err = count; goto end; }
 
-	ast_node_t* node = calloc(1, sizeof(ast_node_t));
+	ast_node_t *node = calloc(1, sizeof(ast_node_t));
 	if (!node) PANIC("Unexpected unallocation");
 	err = parse_content(TOKENS, node);
-	if (err <= 0) goto end;
+	if (err <= 0)
+	{
+		annihilate_tree(node);
+		goto end;
+	}
 
 	compresult_t cr = { 0 };
 	int status = execute(node, &cr);
@@ -119,15 +124,16 @@ static void handle_line(const char* line)
 	{
 		if (cr.error)
 		{
+			annihilate_tree(node);
 			err = cr.error;
 			goto end;
 		}
 
 		if (cr.value.type == NUMBER_DOUBLE)
-			printf(YELLOW_PRINT "= %.*f\n" NORMAL_PRINT, get_precision(), cr.value.doble);
+			printf(YELLOW_PRINT "= %.*f\n" NORMAL_PRINT, PRECISION, cr.value.doble);
 		else if (cr.value.type == NUMBER_BIGINT)
 		{
-			char* buff = bi_to_str(&cr.value.bint);
+			char *buff = bi_to_str(&cr.value.bint);
 			printf(YELLOW_PRINT "= %s\n" NORMAL_PRINT, buff);
 			free(buff);
 		}
@@ -148,7 +154,7 @@ end:
 }
 
 
-static int control_command(const char* command)
+static int control_command(const char *command)
 {
 	if (command[0] == 'h')
 	{
@@ -179,10 +185,10 @@ static int control_command(const char* command)
 	}
 	else if (command[0] == 'p')
 	{
-		const char* num = command + 1;
+		const char *num = command + 1;
 		while (*num == ' ') num++;
-		set_precision(atoi(num));
-		printf(SILENT_PRINT "Set output precision to %d digits\n" NORMAL_PRINT, get_precision());
+		PRECISION = atoi(num);
+		printf(SILENT_PRINT "Set output precision to %d digits\n" NORMAL_PRINT, PRECISION);
 	}
 	else if (command[0] == 'u')
 	{
@@ -203,18 +209,18 @@ static int control_command(const char* command)
 }
 
 #define INPUT_LINE_SIZE 512
-static int args_mode(int argc, char* argv[])
+static int args_mode(int argc, char *argv[])
 {
 	char line[INPUT_LINE_SIZE] = { 0 };
 	int pos = 0;
 	for (int i = 1; i < argc; i++)
 	{
-		char* arg = argv[i];
+		char *arg = argv[i];
 		strcpy(line + pos, arg);
 		pos += (int)strlen(arg);
 	}
 
-	char* statement = strtok(line, ";");
+	char *statement = strtok(line, ";");
 	while (statement)
 	{
 		handle_line(statement);
@@ -224,7 +230,7 @@ static int args_mode(int argc, char* argv[])
 	return 0;
 }
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
 	preload_defaults();
 

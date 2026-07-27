@@ -3,14 +3,14 @@
 #include <ctype.h>
 
 
-int tokenize_line(const char* line, token_t* tokens, int maxsize)
+int tokenize_line(const char *line, token_t *tokens, int maxsize)
 {
 	int j = 0;
 	int len = (int)strlen(line);
 	for (int i = 0; j < maxsize && i < len; i++)
 	{
 		char c = line[i];
-		token_t* tok = tokens + j;
+		token_t *tok = tokens + j;
 		if (isspace(c)) continue;
 
 		if (c == ',') tok->type = TOKEN_COMMA;
@@ -41,26 +41,26 @@ int tokenize_line(const char* line, token_t* tokens, int maxsize)
 		}
 		else if (isalpha(c))
 		{
-			const sfunc_t* sfunc = get_sfunc(line + i);
-			const lfunc_t* lfunc = get_lfunc(line + i);
-			const alpha_name_t* an = get_alpha_name(line + i);
+			const sfunc_t *sfunc = get_sfunc(line + i);
+			const lfunc_t *lfunc = get_lfunc(line + i);
+			const alpha_name_t *an = get_alpha_name(line + i);
 
 			if (sfunc)
 			{
 				tok->type = TOKEN_SFUNC;
-				tok->ptr = (void*)sfunc;
+				tok->ptr = (void *)sfunc;
 				i += (int)strlen(sfunc->name) - 1;
 			}
 			else if (lfunc)
 			{
 				tok->type = TOKEN_LFUNC;
-				tok->ptr = (void*)lfunc;
+				tok->ptr = (void *)lfunc;
 				i += (int)strlen(lfunc->name) - 1;
 			}
 			else if (an)
 			{
 				tok->type = TOKEN_ALPHA;
-				tok->ptr = (void*)an;
+				tok->ptr = (void *)an;
 				i += (int)strlen(an->str) - 1;
 			}
 			else
@@ -78,7 +78,7 @@ int tokenize_line(const char* line, token_t* tokens, int maxsize)
 	tokens[j++].type = TOKEN_EOL;
 	return j;
 }
-void cleanup_tokens(token_t* tokens, int count)
+void cleanup_tokens(token_t *tokens, int count)
 {
 	for (int i = 0; i < count; i++)
 	{

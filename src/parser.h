@@ -28,12 +28,12 @@ typedef struct ast_node
 	{
 		number_t number;
 		identifier_t ident;
-		const sfunc_t* sfunc;
-		const lfunc_t* lfunc;
+		const sfunc_t *sfunc;
+		const lfunc_t *lfunc;
 	};
-	struct ast_node* left, * right;
+	struct ast_node *left, *right;
 } ast_node_t;
 
 
 struct token;
-int parse_content(const struct token* tokens, ast_node_t* root);
+int parse_content(const struct token *tokens, ast_node_t *root);
